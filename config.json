@@ -1,12 +1,12 @@
 {
-	"NER":false,
+	"NER":true,
 	"splitIntoParagraphs":true,
 	"idColumnName" : "id",
  	"textColumnName" : "text",
-    "inputDir" : "data/processed/rawArticlesAsJson/",
-    "outputDir" : "data/processed/articles-annotated/",
-    "verbose" : 0,
+    "inputDir" : "example/raw/",
+    "outputDir" : "example/annotated/",
+    "verbose" : 1,
     "writeBatch" : 10,
-    "fileFrom":10,
-    "fileTo":50
+    "fileFrom":0,
+    "fileTo":100
 }
