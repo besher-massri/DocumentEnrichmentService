@@ -1,0 +1,12 @@
+{
+	"NER":false,
+	"splitIntoParagraphs":true,
+	"idColumnName" : "id",
+ 	"textColumnName" : "text",
+    "inputDir" : "data/processed/rawArticlesAsJson/",
+    "outputDir" : "data/processed/articles-annotated/",
+    "verbose" : 0,
+    "writeBatch" : 10,
+    "fileFrom":10,
+    "fileTo":50
+}
