@@ -1,6 +1,6 @@
-# ArticlesAnnotator
+# DocumentsAnnotator
 
-This program is used to annotate articles using CoreNLP pipeline.
+This program is used to annotate documents using CoreNLP pipeline.
  
  In full capabilities, text is tokenized into words which are annotated with POS, Lemma(norm). 
  In additionand named entities are extracted from the text.
@@ -33,11 +33,11 @@ This program is used to annotate articles using CoreNLP pipeline.
  
  - outputDir [String]: the output directory where the annotations files will be stored.
  
- - verbose [0,inf): a number indicating the frequency of outputting the number of articles processed.
- The number indicates how many articles will be processed before outputting a new announcement. Assigning a small value on it might cause a small slowdown in some cases.
+ - verbose [0,inf): a number indicating the frequency of outputting the number of documents processed.
+ The number indicates how many documents will be processed before outputting a new announcement. Assigning a small value on it might cause a small slowdown in some cases.
  A value of 0 will deactivate it. Note that in all situations, there will be an output sentence for each file.
  
- - writeBatch [0,inf): The number of annotated articles to process before writing on disk. This is used in case that writing
+ - writeBatch [0,inf): The number of annotated documents to process before writing on disk. This is used in case that writing
  on disk is the bottleneck. Lower value means more time, higher value means more memory usage. A good starting value
  is 100. A value of 0 will make writing to disk once per file. 
  
