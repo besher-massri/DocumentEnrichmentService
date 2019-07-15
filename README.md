@@ -23,7 +23,7 @@ This program is used to annotate documents using CoreNLP pipeline.
  
  - NER [Boolean]: if true, named entity will be extracted, note that this will slow down the process.
  
- - splitIntoParagraphs [Boolean]: if true, the document will be split into paragraphs, and an annotation will be generated for each paragraph independently. Set this to true if documents are long.
+ - splitIntoParagraphs [Boolean]: if true, sentence tokenization will be forced to split on the double newlines `\n\n` symbol, which is usually used when splitting between paragraphs. Set this to true if documents are long and you know that double newlines `\n\n` is used in your documents as a paragraph separator.
  
  - idColumnName [String]: The name of the field which represents the id of the document.
  

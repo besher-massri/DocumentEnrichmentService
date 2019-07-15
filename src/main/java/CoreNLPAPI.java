@@ -15,15 +15,15 @@ import java.util.*;
  * <p>
  * To use it, use {@link #process(String, String)} with the id and the text string
  * <p>
- * For per-paragraph annotation, use {@link #processAsParagraphs(String, String)}, with the same parameters.
- * This split the text into paragraphs first, then annotate each paragraph independently.
+ * If the documents in the dataset are long, set {@link #splitIntoParagraphs} to true, which will force splitting
+ * sentences on double newlines `\n\n`, which is usually considered a paragraph separation symbol.
  */
 public class CoreNLPAPI {
     private boolean NER;
     private StanfordCoreNLP pipeline;
-    private StanfordCoreNLP ssplitPipeline;
     private WordNetAPI wn;
     private boolean synonyms;
+    private boolean splitIntoParagraphs;
 
 
     /**
@@ -31,9 +31,10 @@ public class CoreNLPAPI {
      *
      * @param NER whether or not to generate named entity as part of the annotation
      */
-    CoreNLPAPI(boolean NER, boolean synonyms) {
+    CoreNLPAPI(boolean NER, boolean synonyms, boolean splitIntoParagraphs) {
         this.NER = NER;
         this.synonyms = synonyms;
+        this.splitIntoParagraphs = splitIntoParagraphs;
         init();
     }
 
@@ -57,11 +58,10 @@ public class CoreNLPAPI {
             props.setProperty("annotators", "tokenize, ssplit, pos, lemma");
         }
         pipeline = new StanfordCoreNLP(props);
-        // creates a StanfordCoreNLP object for sentence splitter only, to use in splitIntoParagraphs method
-        Properties ssplitProps = new Properties();
-        ssplitProps.put("annotators", "tokenize, ssplit");
-        ssplitPipeline = new StanfordCoreNLP(ssplitProps);
-
+        //if splitInto paragraphs is enabled, then split on double \n (paragraph symbol)
+        if (splitIntoParagraphs) {
+            props.setProperty("ssplit.newlineIsSentenceBreak", "two");
+        }
         wn = WordNetAPI.getInstance();
     }
 
@@ -148,92 +148,6 @@ public class CoreNLPAPI {
             spacesArr.put(space);
         }
         return spacesArr;
-    }
-
-    /**
-     * Split a text into paragraphs
-     * The splitting process is done using sentence-split and tokenize components of the CoreNLP pipeline
-     *
-     * @param text the text to split into paragraphs
-     * @return list of paragraphs extracted from the text
-     */
-    private ArrayList<String> splitIntoParagraph(String text) {
-        ArrayList<String> paragraphs = new ArrayList<>();
-        ArrayList<String> spaces = new ArrayList<>();
-
-        CoreDocument doc = new CoreDocument(text);
-        ssplitPipeline.annotate(doc);
-
-        //get the spaces between the sentences
-        List<CoreSentence> sentences = doc.sentences();
-        //first space item
-        spaces.add(text.substring(0, sentences.get(0).charOffsets().first));
-        //intermediate spaces
-        for (int i = 0; i < sentences.size() - 1; ++i) {
-            spaces.add(text.substring(sentences.get(i).charOffsets().second, sentences.get(i + 1).charOffsets().first));
-        }
-        //last space item
-        spaces.add(text.substring(sentences.get(sentences.size() - 1).charOffsets().second));
-
-        /*
-            Paragraphs are split using \n character. Therefore once a space between two sentences contain \n character,
-            it marks the end of the paragraph.
-         */
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < sentences.size(); ++i) {
-            builder.append(sentences.get(i).text());
-            if (spaces.get(i + 1).contains("\n")) { // paragraph break
-                paragraphs.add(builder.toString());
-                builder = new StringBuilder();
-            } else {
-                //if not add the space to the paragraph
-                builder.append(spaces.get(i + 1));
-            }
-        }
-        // if there is an ongoing paragraph add it also
-        if (builder.length() > 0) {
-            paragraphs.add(builder.toString());
-        }
-        return paragraphs;
-    }
-
-    /**
-     * Pad a number with zeros up to a fixed length and return it as a string
-     *
-     * @param number  the number to be padded
-     * @param padding the total size of the intended string, in which the remaining slots will be filled with zeros
-     * @return the padded number as a string
-     */
-    private String paddingNumber(int number, int padding) {
-        StringBuilder res = new StringBuilder();
-        int counter = Math.max(0, padding - String.valueOf(number).length());
-        while (counter-- > 0) {
-            res.append('0');
-        }
-        res.append(number);
-        return res.toString();
-    }
-
-    /**
-     * Split the text into paragraphs and annotate each paragraph with the annotation pipeline
-     * The id of each paragraph will be originalId_XXX where XXX is a three digit number (appended with zero if needed)
-     * indicating the paragraph index
-     *
-     * @param id   the id of the text
-     * @param text the text to be annotated
-     * @return #ArrayList of #JSONObject each representing the annotated paragraph extracted from the text
-     * @see #process(String, String) for the format of the annotations
-     */
-    ArrayList<JSONObject> processAsParagraphs(String id, String text) {
-        ArrayList<String> paragraphs = splitIntoParagraph(text);
-        ArrayList<JSONObject> annotatedArticles = new ArrayList<>();
-        int counter = 0;
-        for (String paragraph : paragraphs) {
-            String subId = id + "_" + paddingNumber(counter, 3);
-            annotatedArticles.add(process(subId, paragraph));
-            ++counter;
-        }
-        return annotatedArticles;
     }
 
     /**

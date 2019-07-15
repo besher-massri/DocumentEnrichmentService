@@ -17,8 +17,9 @@ import java.util.Scanner;
  * To use the program, modify the configuration in the config file and then run the program.
  * The configurations are:
  * - @NER: if true, named entity will be extracted, note that this will slow down the process
- * - @splitIntoParagraphs: if true, the document will be split into paragraphs, and an annotation will be generated for
- * each paragraph independently. Set this to true if documents are long.
+ * - @splitIntoParagraphs: if true, sentence tokenization will be forced to split on the double newlines `\n\n` symbol,
+ * which is usually used when splitting between paragraphs. Set this to true if documents are long and you know
+ * that double newlines `\n\n` is used in your documents as a paragraph separator.
  * - @idColumnName: The name of the field which represents the id of the document.
  * - @textColumnName: The name of the field which represents the document text.
  * - @inputDir: the input directory where the files are stored
@@ -123,7 +124,7 @@ public class DocumentsAnnotator {
         //loading the config
         loadConfig();
         //initiating the pipeline and output list
-        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms);
+        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms, splitIntoParagraphs);
         ArrayList<JSONObject> output = new ArrayList<>();
 
         //getting the names of the files in the directory
@@ -158,22 +159,9 @@ public class DocumentsAnnotator {
                         System.out.println("Found " + errorCounter + " errors");
                     }
                     //annotate the article
-                    ArrayList<JSONObject> paragraphs;
-                    if (splitIntoParagraphs) {
-                        paragraphs = corenlp.processAsParagraphs(articleId, articleText);
-                    } else {
-                        /*since process the whole article will return JSONObject, an empty list will be initiated at
-                           first then the annotation will be added, to make the output of both processes as JSONArray
-                        */
-                        paragraphs = new ArrayList<>();
-                        paragraphs.add(corenlp.process(articleId, articleText));
-                    }
-                    assert paragraphs != null;
-
-                    /*the write batch is applied on the number of input articles, not the number of output annotation
-                      since the number of annotations will be larger if @splitIntoParagraphs is true
-                    */
-                    output.addAll(paragraphs);
+                    JSONObject annotation = corenlp.process(articleId, articleText);
+                    assert annotation != null;
+                    output.add(annotation);
                     if (writeBatch > 0 && itemCounter % writeBatch == 0) {
                         for (JSONObject object : output) {
                             object.write(out);
