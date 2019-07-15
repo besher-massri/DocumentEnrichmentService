@@ -1,7 +1,7 @@
 {
   "NER": true,
   "synonyms": true,
-  "splitIntoParagraphs": false,
+  "splitIntoParagraphs": true,
   "idColumnName": "id",
   "textColumnName": "text",
   "inputDir": "example/raw/",
