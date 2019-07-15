@@ -21,14 +21,19 @@ import java.util.*;
 public class CoreNLPAPI {
     private boolean NER;
     private StanfordCoreNLP pipeline;
+    private StanfordCoreNLP ssplitPipeline;
+    private WordNetAPI wn;
+    private boolean synonyms;
+
 
     /**
      * Constructor for class #CoreNLPAPI
      *
      * @param NER whether or not to generate named entity as part of the annotation
      */
-    CoreNLPAPI(boolean NER) {
+    CoreNLPAPI(boolean NER, boolean synonyms) {
         this.NER = NER;
+        this.synonyms = synonyms;
         init();
     }
 
@@ -52,6 +57,12 @@ public class CoreNLPAPI {
             props.setProperty("annotators", "tokenize, ssplit, pos, lemma");
         }
         pipeline = new StanfordCoreNLP(props);
+        // creates a StanfordCoreNLP object for sentence splitter only, to use in splitIntoParagraphs method
+        Properties ssplitProps = new Properties();
+        ssplitProps.put("annotators", "tokenize, ssplit");
+        ssplitPipeline = new StanfordCoreNLP(ssplitProps);
+
+        wn = WordNetAPI.getInstance();
     }
 
     /**
@@ -69,6 +80,9 @@ public class CoreNLPAPI {
         tokenJson.put("ner", token.ner());
         tokenJson.put("iFrom", token.beginPosition());
         tokenJson.put("iTo", token.endPosition() - 1);
+        if (synonyms) {
+            tokenJson.put("synonyms", new JSONArray(wn.getSynonyms(token.lemma(), token.tag())));
+        }
         return tokenJson;
     }
 
@@ -98,6 +112,9 @@ public class CoreNLPAPI {
         entityJson.put("iTo", mention.charOffsets().second - 1);
         entityJson.put("wFrom", getTokenWordIdx(mention.tokens().get(0), cumulativeSumOfSentences));
         entityJson.put("wTo", getTokenWordIdx(mention.tokens().get(mention.tokens().size() - 1), cumulativeSumOfSentences));
+        if (synonyms) {
+            entityJson.put("synonyms", new JSONArray(wn.getSynonyms(mention.text(), "NN")));
+        }
         return entityJson;
     }
 
@@ -143,12 +160,9 @@ public class CoreNLPAPI {
     private ArrayList<String> splitIntoParagraph(String text) {
         ArrayList<String> paragraphs = new ArrayList<>();
         ArrayList<String> spaces = new ArrayList<>();
-        // creates a StanfordCoreNLP object
-        Properties props = new Properties();
-        props.put("annotators", "tokenize, ssplit");
-        StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
+
         CoreDocument doc = new CoreDocument(text);
-        pipeline.annotate(doc);
+        ssplitPipeline.annotate(doc);
 
         //get the spaces between the sentences
         List<CoreSentence> sentences = doc.sentences();
@@ -210,7 +224,7 @@ public class CoreNLPAPI {
      * @return #ArrayList of #JSONObject each representing the annotated paragraph extracted from the text
      * @see #process(String, String) for the format of the annotations
      */
-    public ArrayList<JSONObject> processAsParagraphs(String id, String text) {
+    ArrayList<JSONObject> processAsParagraphs(String id, String text) {
         ArrayList<String> paragraphs = splitIntoParagraph(text);
         ArrayList<JSONObject> annotatedArticles = new ArrayList<>();
         int counter = 0;
@@ -297,7 +311,7 @@ public class CoreNLPAPI {
             return annotatedArticle;
 
         } catch (Exception ex) {
-            System.out.println(ex);
+            ex.printStackTrace();
         }
         // if anything failed, return an empty annotation object (with only id added)
         annotatedArticle = new JSONObject();

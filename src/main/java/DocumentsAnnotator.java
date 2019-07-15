@@ -36,7 +36,7 @@ import java.util.Scanner;
  * <p>
  * Main class of the program.
  */
-public class ArticlesAnnotator {
+public class DocumentsAnnotator {
     private static boolean NER;
     private static boolean splitIntoParagraphs;
     private static String idColumnName;
@@ -47,6 +47,7 @@ public class ArticlesAnnotator {
     private static String outputDir;
     private static int fileFrom;
     private static int fileTo;
+    private static boolean synonyms;
 
     private static final String configPath = "config.json";
 
@@ -69,6 +70,7 @@ public class ArticlesAnnotator {
             writeBatch = (Integer) config.get("writeBatch");
             fileFrom = (Integer) config.get("fileFrom");
             fileTo = (Integer) config.get("fileTo");
+            synonyms = (Boolean) config.get("synonyms");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             NER = true;
@@ -81,6 +83,7 @@ public class ArticlesAnnotator {
             outputDir = "data/processed/articles-annotated/";
             fileFrom = 0;
             fileTo = 1000000;
+            synonyms = false;
         }
     }
 
@@ -120,7 +123,7 @@ public class ArticlesAnnotator {
         //loading the config
         loadConfig();
         //initiating the pipeline and output list
-        CoreNLPAPI corenlp = new CoreNLPAPI(NER);
+        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms);
         ArrayList<JSONObject> output = new ArrayList<>();
 
         //getting the names of the files in the directory
@@ -133,7 +136,6 @@ public class ArticlesAnnotator {
         for (int fileCounter = fileFrom; fileCounter < fileList.size() && fileCounter <= fileTo; fileCounter++) {
             String file = fileList.get(fileCounter);
             System.out.println("Processing file: " + file);
-
             try {
 
                 BufferedReader reader = new BufferedReader(new FileReader(inputDir + file));
@@ -141,8 +143,8 @@ public class ArticlesAnnotator {
                 PrintWriter out = new PrintWriter(outputDir + file);
                 //read one article per line
                 while ((articleJson = reader.readLine()) != null) {
-                    String articleId = "";
-                    String articleText = "";
+                    String articleId;
+                    String articleText;
                     ++itemCounter;
                     try {
                         //extract the id and text

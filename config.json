@@ -1,12 +1,13 @@
 {
-	"NER":true,
-	"splitIntoParagraphs":true,
-	"idColumnName" : "id",
- 	"textColumnName" : "text",
-    "inputDir" : "example/raw/",
-    "outputDir" : "example/annotated/",
-    "verbose" : 1,
-    "writeBatch" : 10,
-    "fileFrom":0,
-    "fileTo":100
+  "NER": true,
+  "synonyms": true,
+  "splitIntoParagraphs": true,
+  "idColumnName": "id",
+  "textColumnName": "text",
+  "inputDir": "example/raw/",
+  "outputDir": "example/annotated/",
+  "verbose": 1,
+  "writeBatch": 10,
+  "fileFrom": 0,
+  "fileTo": 100
 }
