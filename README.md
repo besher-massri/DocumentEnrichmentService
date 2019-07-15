@@ -25,6 +25,8 @@ This program is used to annotate documents using CoreNLP pipeline.
  
  - splitIntoParagraphs [Boolean]: if true, sentence tokenization will be forced to split on the double newlines `\n\n` symbol, which is usually used when splitting between paragraphs. Set this to true if documents are long and you know that double newlines `\n\n` is used in your documents as a paragraph separator.
  
+ - synonyms [Boolean]: if true, for each word and named entity, a list of alternative meanings (synonyms) will be provided (if exists). 
+ 
  - idColumnName [String]: The name of the field which represents the id of the document.
  
  - textColumnName [String]: The name of the field which represents the document text.
