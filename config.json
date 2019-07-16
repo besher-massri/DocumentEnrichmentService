@@ -1,13 +1,14 @@
 {
   "NER": true,
+  "temporalEntities": false,
   "synonyms": true,
   "splitIntoParagraphs": true,
   "idColumnName": "id",
   "textColumnName": "text",
-  "inputDir": "example/raw/",
-  "outputDir": "example/annotated/",
+  "inputDir": "../../Data/cleaned_documents/",
+  "outputDir": "../../Data/processed_documents/NE/",
   "verbose": 1,
   "writeBatch": 10,
-  "fileFrom": 0,
-  "fileTo": 100
+  "fileFrom": 4,
+  "fileTo": 4
 }

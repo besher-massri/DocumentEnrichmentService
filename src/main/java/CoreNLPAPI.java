@@ -24,6 +24,7 @@ public class CoreNLPAPI {
     private WordNetAPI wn;
     private boolean synonyms;
     private boolean splitIntoParagraphs;
+    private boolean temporalEntities;
 
 
     /**
@@ -31,10 +32,11 @@ public class CoreNLPAPI {
      *
      * @param NER whether or not to generate named entity as part of the annotation
      */
-    CoreNLPAPI(boolean NER, boolean synonyms, boolean splitIntoParagraphs) {
+    CoreNLPAPI(boolean NER, boolean synonyms, boolean splitIntoParagraphs, boolean temporalEntities) {
         this.NER = NER;
         this.synonyms = synonyms;
         this.splitIntoParagraphs = splitIntoParagraphs;
+        this.temporalEntities = temporalEntities;
         init();
     }
 
@@ -54,14 +56,17 @@ public class CoreNLPAPI {
             props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner");
             props.setProperty("ner.buildEntityMentions", "true");
             props.setProperty("ner.applyFineGrained", "false");
+            if (!temporalEntities) {
+                props.setProperty("ner.useSUTime", "false");
+            }
         } else {
             props.setProperty("annotators", "tokenize, ssplit, pos, lemma");
         }
-        pipeline = new StanfordCoreNLP(props);
         //if splitInto paragraphs is enabled, then split on double \n (paragraph symbol)
         if (splitIntoParagraphs) {
             props.setProperty("ssplit.newlineIsSentenceBreak", "two");
         }
+        pipeline = new StanfordCoreNLP(props);
         wn = WordNetAPI.getInstance();
     }
 
@@ -189,6 +194,8 @@ public class CoreNLPAPI {
         JSONObject annotatedArticle = new JSONObject();
         annotatedArticle.put("id", id);
         try {
+            //CoreNLP crashed when \r\n used as a newline separator, the space is to preserve the length of the document
+            text = text.replaceAll("\\r\\n", " \\n").replaceAll("\\r", "\\n");
             //create a document object out of the text and annotate it
             CoreDocument doc = new CoreDocument(text);
             pipeline.annotate(doc);

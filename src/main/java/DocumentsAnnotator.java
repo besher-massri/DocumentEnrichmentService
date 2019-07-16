@@ -17,6 +17,7 @@ import java.util.Scanner;
  * To use the program, modify the configuration in the config file and then run the program.
  * The configurations are:
  * - @NER: if true, named entity will be extracted, note that this will slow down the process
+ * - @temporalEntities: if false, SUTime expression recogniser will be turned off, do this when the language isn't English.
  * - @splitIntoParagraphs: if true, sentence tokenization will be forced to split on the double newlines `\n\n` symbol,
  * which is usually used when splitting between paragraphs. Set this to true if documents are long and you know
  * that double newlines `\n\n` is used in your documents as a paragraph separator.
@@ -39,6 +40,7 @@ import java.util.Scanner;
  */
 public class DocumentsAnnotator {
     private static boolean NER;
+    private static boolean temporalEntities;
     private static boolean splitIntoParagraphs;
     private static String idColumnName;
     private static String textColumnName;
@@ -62,6 +64,7 @@ public class DocumentsAnnotator {
                     .useDelimiter("\\A").next();
             JSONObject config = new JSONObject(entireFileText);
             NER = (Boolean) config.get("NER");
+            temporalEntities = (Boolean) config.get("temporalEntities");
             splitIntoParagraphs = (Boolean) config.get("splitIntoParagraphs");
             idColumnName = String.valueOf(config.get("idColumnName"));
             textColumnName = String.valueOf(config.get("textColumnName"));
@@ -75,6 +78,7 @@ public class DocumentsAnnotator {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             NER = true;
+            temporalEntities = false;
             splitIntoParagraphs = true;
             idColumnName = "document_id";
             textColumnName = "document_text";
@@ -124,7 +128,7 @@ public class DocumentsAnnotator {
         //loading the config
         loadConfig();
         //initiating the pipeline and output list
-        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms, splitIntoParagraphs);
+        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms, splitIntoParagraphs, temporalEntities);
         ArrayList<JSONObject> output = new ArrayList<>();
 
         //getting the names of the files in the directory
