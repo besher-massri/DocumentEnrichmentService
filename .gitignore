@@ -124,3 +124,5 @@ buildNumber.properties
 
 stanford-corenlp-full-2018-10-05/
 data/
+.idea/
+*.iml
