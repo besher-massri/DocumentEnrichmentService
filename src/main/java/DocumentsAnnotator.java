@@ -51,7 +51,9 @@ public class DocumentsAnnotator {
     private static int fileFrom;
     private static int fileTo;
     private static boolean synonyms;
-
+    private static boolean spaces;
+    private static boolean indices;
+    private static boolean wordAnnotations;
     private static final String configPath = "config.json";
 
     /**
@@ -75,6 +77,9 @@ public class DocumentsAnnotator {
             fileFrom = (Integer) config.get("fileFrom");
             fileTo = (Integer) config.get("fileTo");
             synonyms = (Boolean) config.get("synonyms");
+            spaces = (Boolean) config.get("spaces");
+            indices = (Boolean) config.get("indices");
+            wordAnnotations = (Boolean) config.get("wordAnnotations");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             NER = true;
@@ -89,6 +94,9 @@ public class DocumentsAnnotator {
             fileFrom = 0;
             fileTo = 1000000;
             synonyms = false;
+            spaces=true;
+            indices=true;
+            wordAnnotations=true;
         }
     }
 
@@ -128,7 +136,11 @@ public class DocumentsAnnotator {
         //loading the config
         loadConfig();
         //initiating the pipeline and output list
-        CoreNLPAPI corenlp = new CoreNLPAPI(NER, synonyms, splitIntoParagraphs, temporalEntities);
+        CoreNLPAPI corenlp = new CoreNLPAPI(NER, splitIntoParagraphs, temporalEntities);
+        corenlp.setSynonyms(synonyms);
+        corenlp.setIndices(indices);
+        corenlp.setSpaces(spaces);
+        corenlp.setWordAnnotations(wordAnnotations);
         ArrayList<JSONObject> output = new ArrayList<>();
 
         //getting the names of the files in the directory

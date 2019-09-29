@@ -1,14 +1,17 @@
 {
   "NER": true,
+  "wordAnnotations": true,
   "temporalEntities": false,
-  "synonyms": true,
+  "synonyms": false,
+  "spaces": false,
+  "indices": true,
   "splitIntoParagraphs": true,
   "idColumnName": "id",
   "textColumnName": "text",
-  "inputDir": "../../Data/cleaned_documents/",
-  "outputDir": "../../Data/processed_documents/NE/",
+  "inputDir": "data/cleaned_documents/",
+  "outputDir": "data/processed_documents/NE/",
   "verbose": 1,
   "writeBatch": 10,
-  "fileFrom": 4,
-  "fileTo": 4
+  "fileFrom": 0,
+  "fileTo": 0
 }

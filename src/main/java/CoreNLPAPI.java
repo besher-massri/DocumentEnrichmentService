@@ -25,19 +25,35 @@ public class CoreNLPAPI {
     private boolean synonyms;
     private boolean splitIntoParagraphs;
     private boolean temporalEntities;
-
+    private boolean spaces;
+    private boolean indices;
+    private boolean wordAnnotations;
 
     /**
      * Constructor for class #CoreNLPAPI
      *
      * @param NER whether or not to generate named entity as part of the annotation
      */
-    CoreNLPAPI(boolean NER, boolean synonyms, boolean splitIntoParagraphs, boolean temporalEntities) {
+    CoreNLPAPI(boolean NER, boolean splitIntoParagraphs, boolean temporalEntities) {
         this.NER = NER;
-        this.synonyms = synonyms;
         this.splitIntoParagraphs = splitIntoParagraphs;
         this.temporalEntities = temporalEntities;
         init();
+    }
+
+    public void setSynonyms(boolean synonyms) {
+        this.synonyms = synonyms;
+    }
+
+    public void setIndices(boolean indices) {
+        this.indices = indices;
+    }
+
+    public void setSpaces(boolean spaces) {
+        this.spaces = spaces;
+    }
+    public void setWordAnnotations(boolean wordAnnotations){
+        this.wordAnnotations=wordAnnotations;
     }
 
     /**
@@ -79,12 +95,14 @@ public class CoreNLPAPI {
     private JSONObject tokenToJson(CoreLabel token) {
         JSONObject tokenJson = new JSONObject();
         tokenJson.put("word", token.originalText());
-        tokenJson.put("token", token.word());
+        //tokenJson.put("token", token.word());
         tokenJson.put("norm", token.lemma());
         tokenJson.put("pos", token.tag());
         tokenJson.put("ner", token.ner());
-        tokenJson.put("iFrom", token.beginPosition());
-        tokenJson.put("iTo", token.endPosition() - 1);
+        if (indices) {
+            tokenJson.put("iFrom", token.beginPosition());
+            tokenJson.put("iTo", token.endPosition() - 1);
+        }
         if (synonyms) {
             tokenJson.put("synonyms", new JSONArray(wn.getSynonyms(token.lemma(), token.tag())));
         }
@@ -113,10 +131,12 @@ public class CoreNLPAPI {
         JSONObject entityJson = new JSONObject();
         entityJson.put("text", mention.text());
         entityJson.put("type", mention.entityType());
-        entityJson.put("iFrom", mention.charOffsets().first);
-        entityJson.put("iTo", mention.charOffsets().second - 1);
-        entityJson.put("wFrom", getTokenWordIdx(mention.tokens().get(0), cumulativeSumOfSentences));
-        entityJson.put("wTo", getTokenWordIdx(mention.tokens().get(mention.tokens().size() - 1), cumulativeSumOfSentences));
+        if (indices) {
+            entityJson.put("iFrom", mention.charOffsets().first);
+            entityJson.put("iTo", mention.charOffsets().second - 1);
+            entityJson.put("wFrom", getTokenWordIdx(mention.tokens().get(0), cumulativeSumOfSentences));
+            entityJson.put("wTo", getTokenWordIdx(mention.tokens().get(mention.tokens().size() - 1), cumulativeSumOfSentences));
+        }
         if (synonyms) {
             entityJson.put("synonyms", new JSONArray(wn.getSynonyms(mention.text(), "NN")));
         }
@@ -208,18 +228,22 @@ public class CoreNLPAPI {
                 cumulativeSumOfSetentences.add(counter);
                 counter += sentence.tokens().size();
             }
-            //add the words annotation list
-            JSONArray words = new JSONArray();
-            List<CoreLabel> tokens = doc.tokens();
-            for (CoreLabel token : tokens) {
-                words.put(tokenToJson(token));
-            }
-            annotatedArticle.put("words", words);
-            //add the spaces list
-            if (tokens.isEmpty()) {
-                annotatedArticle.put("spaces", new JSONArray());
-            } else {
-                annotatedArticle.put("spaces", calculateSpaces(text, tokens));
+            if (wordAnnotations) {
+                //add the words annotation list
+                JSONArray words = new JSONArray();
+                List<CoreLabel> tokens = doc.tokens();
+                for (CoreLabel token : tokens) {
+                    words.put(tokenToJson(token));
+                }
+                annotatedArticle.put("words", words);
+                if (spaces) {
+                    //add the spaces list
+                    if (tokens.isEmpty()) {
+                        annotatedArticle.put("spaces", new JSONArray());
+                    } else {
+                        annotatedArticle.put("spaces", calculateSpaces(text, tokens));
+                    }
+                }
             }
             //if NER is enabled, add the named entity information in the `annotations` field
             if (NER) {
@@ -236,9 +260,15 @@ public class CoreNLPAPI {
         }
         // if anything failed, return an empty annotation object (with only id added)
         annotatedArticle = new JSONObject();
-        annotatedArticle.put("words", new JSONArray());
-        annotatedArticle.put("spaces", new JSONArray());
-        annotatedArticle.put("annotations", new JSONArray());
+        if (wordAnnotations) {
+            annotatedArticle.put("words", new JSONArray());
+            if (spaces) {
+                annotatedArticle.put("spaces", new JSONArray());
+            }
+        }
+        if (NER) {
+            annotatedArticle.put("annotations", new JSONArray());
+        }
         return annotatedArticle;
     }
 }
