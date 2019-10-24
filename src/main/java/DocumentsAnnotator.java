@@ -175,6 +175,20 @@ public class DocumentsAnnotator {
                         System.out.println("Found " + errorCounter + " errors");
                     }
                     //annotate the article
+                    StringBuilder cleanText=new StringBuilder();
+                    String snippet;
+                    for (int i=0;i*1000<articleText.length();++i){
+                        snippet=articleText.substring(1000*i,Math.min(1000*i+1000,articleText.length()));
+                        boolean isValid=false;
+                        for (int j=0;j<snippet.length() && !isValid;++j){
+                            isValid|=Character.isAlphabetic(snippet.charAt(j));
+                        }
+                        if (isValid){
+                            cleanText.append(snippet);
+                        }
+                    }
+                    articleText=cleanText.toString();
+                    System.out.println("Cleaned "+itemCounter+", length is "+articleText.length());
                     JSONObject annotation = corenlp.process(articleId, articleText);
                     assert annotation != null;
                     output.add(annotation);
