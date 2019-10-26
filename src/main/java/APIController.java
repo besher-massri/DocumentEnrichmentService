@@ -1,4 +1,7 @@
+import io.github.cdimascio.dotenv.Dotenv;
 import spark.ResponseTransformer;
+
+import java.util.Objects;
 
 import static spark.Spark.*;
 import static spark.Spark.post;
@@ -31,7 +34,12 @@ public class APIController {
         return Boolean.valueOf(val);
     }
     public static void main(String[] args) {
-        int port=4322;
+        Dotenv dotenv =  Dotenv.configure()
+                .directory("config/")
+                .ignoreIfMalformed()
+                .ignoreIfMissing()
+                .load();
+        int port=Integer.parseInt(Objects.requireNonNull(dotenv.get("PORT")));
         port(port);
         DocumentAnnotatorMicroservice APIService=new DocumentAnnotatorMicroservice();
 
@@ -48,7 +56,9 @@ public class APIController {
                 getBoolean(req.queryParams("synonyms")),
                 getBoolean(req.queryParams("splitIntoParagraphs")),
                 getBoolean(req.queryParams("indices")),
-                getBoolean(req.queryParams("spaces"))
+                getBoolean(req.queryParams("spaces")),
+                getBoolean(req.queryParams("wikiConcepts")),
+                req.queryParams("ontology")
         ));
     }
 }

@@ -2,6 +2,7 @@ import org.json.JSONObject;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Scanner;
 
@@ -54,7 +55,10 @@ public class DocumentsAnnotator {
     private static boolean spaces;
     private static boolean indices;
     private static boolean wordAnnotations;
-    private static final String configPath = "config.json";
+    private static boolean wikiConcepts;
+    private static String ontology;
+    private static final String configPath = "config/config.json";
+    private static DocumentAnnotatorMicroservice annotator;
 
     /**
      * Loading the configurations of the program from the config file specified by @configPath
@@ -80,6 +84,8 @@ public class DocumentsAnnotator {
             spaces = (Boolean) config.get("spaces");
             indices = (Boolean) config.get("indices");
             wordAnnotations = (Boolean) config.get("wordAnnotations");
+            wikiConcepts = (Boolean) config.get("wikiConcepts");
+            ontology = String.valueOf(config.get("ontology"));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             NER = true;
@@ -94,9 +100,11 @@ public class DocumentsAnnotator {
             fileFrom = 0;
             fileTo = 1000000;
             synonyms = false;
-            spaces=true;
-            indices=true;
-            wordAnnotations=true;
+            spaces = true;
+            indices = true;
+            wordAnnotations = true;
+            wikiConcepts = true;
+            ontology = "InforMEA";
         }
     }
 
@@ -136,11 +144,16 @@ public class DocumentsAnnotator {
         //loading the config
         loadConfig();
         //initiating the pipeline and output list
+/*
         CoreNLPAPI corenlp = new CoreNLPAPI(NER, splitIntoParagraphs, temporalEntities);
         corenlp.setSynonyms(synonyms);
         corenlp.setIndices(indices);
         corenlp.setSpaces(spaces);
         corenlp.setWordAnnotations(wordAnnotations);
+*/
+        annotator = new DocumentAnnotatorMicroservice();
+        List<DocumentEnricher> enrichers = annotator.preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts);
+
         ArrayList<JSONObject> output = new ArrayList<>();
 
         //getting the names of the files in the directory
@@ -175,21 +188,8 @@ public class DocumentsAnnotator {
                         System.out.println("Found " + errorCounter + " errors");
                     }
                     //annotate the article
-                    StringBuilder cleanText=new StringBuilder();
-                    String snippet;
-                    for (int i=0;i*1000<articleText.length();++i){
-                        snippet=articleText.substring(1000*i,Math.min(1000*i+1000,articleText.length()));
-                        boolean isValid=false;
-                        for (int j=0;j<snippet.length() && !isValid;++j){
-                            isValid|=Character.isAlphabetic(snippet.charAt(j));
-                        }
-                        if (isValid){
-                            cleanText.append(snippet);
-                        }
-                    }
-                    articleText=cleanText.toString();
-                    System.out.println("Cleaned "+itemCounter+", length is "+articleText.length());
-                    JSONObject annotation = corenlp.process(articleId, articleText);
+
+                    JSONObject annotation = annotator.annotateDocument(articleId, articleText, enrichers, ontology);
                     assert annotation != null;
                     output.add(annotation);
                     if (writeBatch > 0 && itemCounter % writeBatch == 0) {

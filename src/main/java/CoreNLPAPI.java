@@ -18,7 +18,7 @@ import java.util.*;
  * If the documents in the dataset are long, set {@link #splitIntoParagraphs} to true, which will force splitting
  * sentences on double newlines `\n\n`, which is usually considered a paragraph separation symbol.
  */
-public class CoreNLPAPI {
+public class CoreNLPAPI implements DocumentEnricher{
     private boolean NER;
     private StanfordCoreNLP pipeline;
     private WordNetAPI wn;
@@ -229,21 +229,23 @@ public class CoreNLPAPI {
                 counter += sentence.tokens().size();
             }
             if (wordAnnotations) {
+                JSONObject annotatedWords=new JSONObject();
                 //add the words annotation list
                 JSONArray words = new JSONArray();
                 List<CoreLabel> tokens = doc.tokens();
                 for (CoreLabel token : tokens) {
                     words.put(tokenToJson(token));
                 }
-                annotatedArticle.put("words", words);
+                annotatedWords.put("words", words);
                 if (spaces) {
                     //add the spaces list
                     if (tokens.isEmpty()) {
-                        annotatedArticle.put("spaces", new JSONArray());
+                        annotatedWords.put("spaces", new JSONArray());
                     } else {
-                        annotatedArticle.put("spaces", calculateSpaces(text, tokens));
+                        annotatedWords.put("spaces", calculateSpaces(text, tokens));
                     }
                 }
+                annotatedArticle.put("annotatedWords",annotatedWords);
             }
             //if NER is enabled, add the named entity information in the `annotations` field
             if (NER) {
@@ -251,23 +253,26 @@ public class CoreNLPAPI {
                 for (CoreEntityMention em : doc.entityMentions()) {
                     annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences));
                 }
-                annotatedArticle.put("annotations", annotations);
+                annotatedArticle.put("NE", annotations);
             }
+            annotatedArticle.put("process","CoreNLP");
             return annotatedArticle;
-
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         // if anything failed, return an empty annotation object (with only id added)
         annotatedArticle = new JSONObject();
+        annotatedArticle.put("process","CoreNLP");
         if (wordAnnotations) {
-            annotatedArticle.put("words", new JSONArray());
+            JSONObject annotatedWords=new JSONObject();
+            annotatedWords.put("words", new JSONArray());
             if (spaces) {
-                annotatedArticle.put("spaces", new JSONArray());
+                annotatedWords.put("spaces",new JSONArray());
             }
+            annotatedArticle.put("annotatedWords",annotatedWords);
         }
         if (NER) {
-            annotatedArticle.put("annotations", new JSONArray());
+            annotatedArticle.put("NE", new JSONArray());
         }
         return annotatedArticle;
     }
