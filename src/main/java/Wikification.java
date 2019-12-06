@@ -274,7 +274,7 @@ public class Wikification implements DocumentEnricher {
         wikifications.put("id", id);
         wikifications.put("language", lang);
         wikifications.put("wiki", wikipediaConcepts);
-        wikifications.put("process", "wikification");
+        //wikifications.put("process", "wikification");
         return wikifications;
     }
 }

@@ -35,12 +35,11 @@ public class ExecutorService {
             long sum=0L;
             for (Future<Result> fr : results) {
                 sum += fr.get().wait;
-                System.out.println(String.format("Task waited %d ms",
-                        fr.get().wait));
+                //System.out.println(String.format("Task waited %d ms", fr.get().wait));
             }
             long elapsed = System.currentTimeMillis() - start;
-            System.out.println(String.format("Elapsed time: %d ms", elapsed));
-            System.out.println(String.format("... but compute tasks waited for total of %d ms; speed-up of %.2fx", sum, ((double)sum) / (elapsed * 1d)));
+            //System.out.println(String.format("Elapsed time: %d ms", elapsed));
+            //System.out.println(String.format("... but compute tasks waited for total of %d ms; speed-up of %.2fx", sum, ((double)sum) / (elapsed * 1d)));
         } finally {
             exec.shutdown();
         }

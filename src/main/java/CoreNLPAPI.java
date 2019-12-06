@@ -255,14 +255,14 @@ public class CoreNLPAPI implements DocumentEnricher{
                 }
                 annotatedArticle.put("NE", annotations);
             }
-            annotatedArticle.put("process","CoreNLP");
+            //annotatedArticle.put("process","CoreNLP");
             return annotatedArticle;
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         // if anything failed, return an empty annotation object (with only id added)
         annotatedArticle = new JSONObject();
-        annotatedArticle.put("process","CoreNLP");
+        //annotatedArticle.put("process","CoreNLP");
         if (wordAnnotations) {
             JSONObject annotatedWords=new JSONObject();
             annotatedWords.put("words", new JSONArray());
