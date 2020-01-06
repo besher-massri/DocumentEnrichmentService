@@ -58,7 +58,9 @@ public class APIController {
                 getBoolean(req.queryParams("indices")),
                 getBoolean(req.queryParams("spaces")),
                 getBoolean(req.queryParams("wikiConcepts")),
-                req.queryParams("ontology")
+                req.queryParams("ontology"),
+                getBoolean(req.queryParams("allowAlternativeNames")),
+                getBoolean(req.queryParams("hierarchy"))
         ));
     }
 }

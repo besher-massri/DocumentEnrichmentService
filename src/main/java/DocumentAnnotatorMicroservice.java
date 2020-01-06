@@ -1,6 +1,7 @@
 import io.github.cdimascio.dotenv.Dotenv;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -12,6 +13,7 @@ public class DocumentAnnotatorMicroservice {
     private CoreNLPAPI SplitIntoParagraphsPipeline;
     private CoreNLPAPI NonePipeline;
     private Wikification wikification;
+
     private OntologyMapping ontMapping;
     private volatile List<JSONObject> enrichments;
 
@@ -41,7 +43,11 @@ public class DocumentAnnotatorMicroservice {
         NERPipeline = new CoreNLPAPI(true, false, true);
         NonePipeline = new CoreNLPAPI(false, false, true);
         wikification = new Wikification(wikifierKey, wikifierWebsite, wikifierMaxLength, wikifierThreads);
-        ontMapping = new OntologyMapping(ontologyDir);
+        try {
+            ontMapping = new OntologyMapping(ontologyDir, true, false);
+        } catch (IOException | NoSuchFieldException e) {
+            e.printStackTrace();
+        }
         System.out.println("Pipeline Initialized");
     }
 
@@ -60,7 +66,7 @@ public class DocumentAnnotatorMicroservice {
     }
 
     private CoreNLPAPI initializePipelineConfigs(boolean NER, boolean wordAnnotations, boolean splitIntoParagraphs, boolean synonyms,
-                                                 boolean indices, boolean spaces) {
+                                                 boolean indices, boolean spaces, boolean allowAlternativeNames, boolean hierarchy) {
         System.out.println("Entered initialization");
         CoreNLPAPI corenlp = getSuitablePipeline(NER, splitIntoParagraphs);
         System.out.println("Finished initialization");
@@ -68,6 +74,8 @@ public class DocumentAnnotatorMicroservice {
         corenlp.setIndices(indices);
         corenlp.setWordAnnotations(wordAnnotations);
         corenlp.setSynonyms(synonyms);
+        ontMapping.setAllowAlternativeNames(allowAlternativeNames);
+        ontMapping.setHierarchy(hierarchy);
         System.out.println("Finished initialization");
         return corenlp;
     }
@@ -101,15 +109,14 @@ public class DocumentAnnotatorMicroservice {
     }
 
 
-
     public List<DocumentEnricher> preparePipeLine(Boolean NER, Boolean wordAnnotations, Boolean synonyms,
                                                   Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
-                                                  Boolean wikiConcepts) {
+                                                  Boolean wikiConcepts, boolean allowAlternativeNames, boolean hierarchy) {
         List<DocumentEnricher> tasks = new ArrayList<>();
         enrichments = new ArrayList<>();
         System.out.println("Configurations Set");
         if (wordAnnotations || NER) {
-            tasks.add(initializePipelineConfigs(NER, wordAnnotations, splitIntoParagraphs, synonyms, indices, spaces));
+            tasks.add(initializePipelineConfigs(NER, wordAnnotations, splitIntoParagraphs, synonyms, indices, spaces, allowAlternativeNames, hierarchy));
         }
         if (wikiConcepts) {
             tasks.add(wikification);
@@ -117,7 +124,8 @@ public class DocumentAnnotatorMicroservice {
         System.out.println("Pipeline Initialized");
         return tasks;
     }
-    public JSONObject annotateDocument(String id, String text,List<DocumentEnricher> tasks,String ontology){
+
+    public JSONObject annotateDocument(String id, String text, List<DocumentEnricher> tasks, String ontology) {
         text = cleanText(text);
         boolean paralleizeTasks = true;
         if (paralleizeTasks) {
@@ -138,9 +146,9 @@ public class DocumentAnnotatorMicroservice {
         annotatedDocument.put("id", id);
         annotatedDocument.put("text", text);
         JSONObject annotationsObj = new JSONObject();
-        for (JSONObject enrichment:enrichments){
-            for (String key:enrichment.keySet()){
-                annotationsObj.put(key,enrichment.get(key));
+        for (JSONObject enrichment : enrichments) {
+            for (String key : enrichment.keySet()) {
+                annotationsObj.put(key, enrichment.get(key));
             }
         }
         annotatedDocument.put("annotations", annotationsObj);
@@ -154,7 +162,7 @@ public class DocumentAnnotatorMicroservice {
                                        Boolean NER, Boolean wordAnnotations, Boolean synonyms,
                                        Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
                                        Boolean wikiConcepts,
-                                       String ontology) {
+                                       String ontology, Boolean allowAlternativeNames, Boolean hierarchy) {
         System.out.println("Annotation started");
         //initiate default parameters if null
         if (NER == null) {
@@ -181,8 +189,14 @@ public class DocumentAnnotatorMicroservice {
         if (ontology == null) {
             ontology = "InforMEA";
         }
-        List<DocumentEnricher> tasks = preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts);
-        return annotateDocument(id,text,tasks,ontology);
+        if (allowAlternativeNames == null) {
+            allowAlternativeNames = true;
+        }
+        if (hierarchy == null) {
+            hierarchy = false;
+        }
+        List<DocumentEnricher> tasks = preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+        return annotateDocument(id, text, tasks, ontology);
 
     }
 }

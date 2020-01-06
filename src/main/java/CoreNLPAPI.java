@@ -255,6 +255,7 @@ public class CoreNLPAPI implements DocumentEnricher{
                 }
                 annotatedArticle.put("NE", annotations);
             }
+            System.out.println("Annotated with NE & Word Annotations");
             //annotatedArticle.put("process","CoreNLP");
             return annotatedArticle;
         } catch (Exception ex) {
@@ -274,6 +275,7 @@ public class CoreNLPAPI implements DocumentEnricher{
         if (NER) {
             annotatedArticle.put("NE", new JSONArray());
         }
+        System.out.println("Annotated with NE & Word Annotations");
         return annotatedArticle;
     }
 }

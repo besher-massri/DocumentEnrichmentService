@@ -57,6 +57,8 @@ public class DocumentsAnnotator {
     private static boolean wordAnnotations;
     private static boolean wikiConcepts;
     private static String ontology;
+    private static boolean allowAlternativeNames;
+    private static boolean hierarchy;
     private static final String configPath = "config/config.json";
     private static DocumentAnnotatorMicroservice annotator;
 
@@ -86,6 +88,8 @@ public class DocumentsAnnotator {
             wordAnnotations = (Boolean) config.get("wordAnnotations");
             wikiConcepts = (Boolean) config.get("wikiConcepts");
             ontology = String.valueOf(config.get("ontology"));
+            allowAlternativeNames = (Boolean) config.get("allowAlternativeNames");
+            hierarchy = (Boolean) config.get("hierarchy");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
             NER = true;
@@ -105,6 +109,8 @@ public class DocumentsAnnotator {
             wordAnnotations = true;
             wikiConcepts = true;
             ontology = "InforMEA";
+            allowAlternativeNames = true;
+            hierarchy = false;
         }
     }
 
@@ -152,7 +158,7 @@ public class DocumentsAnnotator {
         corenlp.setWordAnnotations(wordAnnotations);
 */
         annotator = new DocumentAnnotatorMicroservice();
-        List<DocumentEnricher> enrichers = annotator.preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts);
+        List<DocumentEnricher> enrichers = annotator.preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
 
         ArrayList<JSONObject> output = new ArrayList<>();
 
