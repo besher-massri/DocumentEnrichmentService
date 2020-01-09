@@ -246,6 +246,9 @@ public class DocumentAnnotatorMicroservice {
         if (hierarchy == null) {
             hierarchy = false;
         }
+        if (numericClassifiers==null){
+            numericClassifiers=true;
+        }
         List<DocumentEnricher> tasks = preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, numericClassifiers, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
         return annotateDocument(id, texts, languages, tasks, ontology);
 

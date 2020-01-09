@@ -3,6 +3,7 @@ import edu.stanford.nlp.pipeline.CoreDocument;
 import edu.stanford.nlp.pipeline.CoreEntityMention;
 import edu.stanford.nlp.pipeline.CoreSentence;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -265,9 +266,22 @@ public class CoreNLPAPI implements DocumentEnricher {
 
                 JSONArray annotations = new JSONArray();
                 if (!indices) {
+                    class FreqType implements Comparable<FreqType>{
+                        int freq;
+                        int idx;
+                        @Override
+                        public int compareTo(@NotNull FreqType freqType) {
+                            return freqType.freq-freq;
+                        }
+                        public FreqType(int freq,int idx){
+                            this.freq=freq;
+                            this.idx=idx;
+                        }
+                    }
                     HashMap<String, Integer> frequency = new HashMap<>();
                     List<CoreEntityMention> entityMentions = doc.entityMentions();
                     List<Boolean> repeated = new ArrayList<>();
+                    List<FreqType> freqToIdx=new ArrayList<>();
                     //merge the annotations
                     for (CoreEntityMention em : doc.entityMentions()) {
                         String annotType = em.entityType() + "$$$" + em.text();
@@ -283,8 +297,15 @@ public class CoreNLPAPI implements DocumentEnricher {
                         if (!repeated.get(i)) {
                             CoreEntityMention em = entityMentions.get(i);
                             String annotType = em.entityType() + "$$$" + em.text();
-                            annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences, frequency.get(annotType)));
+                            freqToIdx.add(new FreqType(frequency.get(annotType),i));
                         }
+                    }
+                    Collections.sort(freqToIdx);
+                    for (FreqType type:freqToIdx){
+                        CoreEntityMention em = entityMentions.get(type.idx);
+                        String annotType = em.entityType() + "$$$" + em.text();
+                        assert (frequency.get(annotType)==type.freq);
+                        annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences, frequency.get(annotType)));
                     }
                 } else {
                     for (CoreEntityMention em : doc.entityMentions()) {
