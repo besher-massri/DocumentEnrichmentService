@@ -18,7 +18,7 @@ import java.util.*;
  * If the documents in the dataset are long, set {@link #splitIntoParagraphs} to true, which will force splitting
  * sentences on double newlines `\n\n`, which is usually considered a paragraph separation symbol.
  */
-public class CoreNLPAPI implements DocumentEnricher{
+public class CoreNLPAPI implements DocumentEnricher {
     private boolean NER;
     private StanfordCoreNLP pipeline;
     private WordNetAPI wn;
@@ -52,8 +52,9 @@ public class CoreNLPAPI implements DocumentEnricher{
     public void setSpaces(boolean spaces) {
         this.spaces = spaces;
     }
-    public void setWordAnnotations(boolean wordAnnotations){
-        this.wordAnnotations=wordAnnotations;
+
+    public void setWordAnnotations(boolean wordAnnotations) {
+        this.wordAnnotations = wordAnnotations;
     }
 
     /**
@@ -229,7 +230,7 @@ public class CoreNLPAPI implements DocumentEnricher{
                 counter += sentence.tokens().size();
             }
             if (wordAnnotations) {
-                JSONObject annotatedWords=new JSONObject();
+                JSONObject annotatedWords = new JSONObject();
                 //add the words annotation list
                 JSONArray words = new JSONArray();
                 List<CoreLabel> tokens = doc.tokens();
@@ -245,7 +246,7 @@ public class CoreNLPAPI implements DocumentEnricher{
                         annotatedWords.put("spaces", calculateSpaces(text, tokens));
                     }
                 }
-                annotatedArticle.put("annotatedWords",annotatedWords);
+                annotatedArticle.put("annotatedWords", annotatedWords);
             }
             //if NER is enabled, add the named entity information in the `annotations` field
             if (NER) {
@@ -255,7 +256,7 @@ public class CoreNLPAPI implements DocumentEnricher{
                 }
                 annotatedArticle.put("NE", annotations);
             }
-            System.out.println("Annotated with NE & Word Annotations");
+            //System.out.println("Annotated with NE & Word Annotations");
             //annotatedArticle.put("process","CoreNLP");
             return annotatedArticle;
         } catch (Exception ex) {
@@ -265,17 +266,27 @@ public class CoreNLPAPI implements DocumentEnricher{
         annotatedArticle = new JSONObject();
         //annotatedArticle.put("process","CoreNLP");
         if (wordAnnotations) {
-            JSONObject annotatedWords=new JSONObject();
+            JSONObject annotatedWords = new JSONObject();
             annotatedWords.put("words", new JSONArray());
             if (spaces) {
-                annotatedWords.put("spaces",new JSONArray());
+                annotatedWords.put("spaces", new JSONArray());
             }
-            annotatedArticle.put("annotatedWords",annotatedWords);
+            annotatedArticle.put("annotatedWords", annotatedWords);
         }
         if (NER) {
             annotatedArticle.put("NE", new JSONArray());
         }
-        System.out.println("Annotated with NE & Word Annotations");
+        //System.out.println("Annotated with NE & Word Annotations");
         return annotatedArticle;
+    }
+
+    @Override
+    public JSONObject process(String id, List<String> text, List<String> language) {
+        for (int i = 0; i < language.size(); ++i) {
+            if (language.get(i).equals("en")) {
+                return process(id, text.get(i));
+            }
+        }
+        return null;
     }
 }

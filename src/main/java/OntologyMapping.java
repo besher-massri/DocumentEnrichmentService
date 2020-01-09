@@ -119,16 +119,19 @@ public class OntologyMapping {
         matchedOntTerms.put("NE-syn", NESyn);
     }
 
-    private void processWikiAnnotations(JSONArray wikiAnnotations, JSONObject matchedOntTerms, Ontology ontology, String language) {
+    private void processWikiAnnotations(JSONArray wikiAnnotations, JSONObject matchedOntTerms, Ontology ontology) {
         HashMap<String, JSONArray> wikiName = new HashMap<>();
         HashMap<String, JSONArray> wikiDataClasses = new HashMap<>();
         for (int i = 0; i < wikiAnnotations.length(); ++i) {
             JSONObject annot = wikiAnnotations.getJSONObject(i);
-            processTerm(annot.getString("name"), wikiName, ontology, language);
+            JSONObject langInfoObj = annot.getJSONObject("langInfo");
+            for (String lang : langInfoObj.keySet()) {
+                processTerm(langInfoObj.getJSONObject(lang).getString("name"), wikiName, ontology, lang);
+            }
             if (annot.has("wikiDataClasses")) {
                 JSONArray wdcs = annot.getJSONArray("wikiDataClasses");
                 for (int j = 0; j < wdcs.length(); ++j) {
-                    processTerm(wdcs.getJSONObject(j).getString("enLabel"), wikiDataClasses, ontology, language);
+                    processTerm(wdcs.getJSONObject(j).getString("enLabel"), wikiDataClasses, ontology, "en");
                 }
             }
         }
@@ -146,12 +149,6 @@ public class OntologyMapping {
 
     public void MapWithOntology(JSONObject annotatedDocument, String ontologyName) {
         List<Ontology> chosenOntologies = new ArrayList<>();
-        String language;
-        if (annotatedDocument.has("lang")) {
-            language = annotatedDocument.getString("lang");
-        } else {
-            language = "eng";
-        }
         if (ontologyName.equals("ALL")) {
             chosenOntologies.addAll(ontologies.values());
         } else if (ontologies.containsKey(ontologyName)) {
@@ -163,15 +160,17 @@ public class OntologyMapping {
         JSONObject ontologyTerms = annotatedDocument.getJSONObject("ontology_terms");
         for (Ontology ontology : chosenOntologies) {
             JSONObject matchedOntTerms = new JSONObject();
-            System.out.println("Mapping with ontology " + ontology.getOntologyName());
+            //System.out.println("Mapping with ontology " + ontology.getOntologyName());
             if (annotatedDocument.has("wiki")) {
-                processWikiAnnotations(annotatedDocument.getJSONArray("wiki"), matchedOntTerms, ontology, language);
+                processWikiAnnotations(annotatedDocument.getJSONArray("wiki"), matchedOntTerms, ontology);
             }
             if (annotatedDocument.has("NE")) {
-                processNEAnnotations(annotatedDocument.getJSONArray("NE"), matchedOntTerms, ontology, language);
+                //since for now the only supported one is english
+                processNEAnnotations(annotatedDocument.getJSONArray("NE"), matchedOntTerms, ontology, "en");
             }
             if (annotatedDocument.has("annotatedWords")) {
-                processWordAnnotations(annotatedDocument.getJSONObject("annotatedWords").getJSONArray("words"), matchedOntTerms, ontology, language);
+                //since for now the only supported one is english
+                processWordAnnotations(annotatedDocument.getJSONObject("annotatedWords").getJSONArray("words"), matchedOntTerms, ontology, "en");
             }
             ontologyTerms.put(ontology.getOntologyName(), matchedOntTerms);
         }

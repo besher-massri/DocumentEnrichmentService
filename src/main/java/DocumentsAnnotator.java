@@ -1,3 +1,4 @@
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.*;
@@ -158,7 +159,8 @@ public class DocumentsAnnotator {
         corenlp.setWordAnnotations(wordAnnotations);
 */
         annotator = new DocumentAnnotatorMicroservice();
-        List<DocumentEnricher> enrichers = annotator.preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+        List<String> languagesSupported = new ArrayList<>();
+        languagesSupported.add("xx");
 
         ArrayList<JSONObject> output = new ArrayList<>();
 
@@ -173,29 +175,37 @@ public class DocumentsAnnotator {
             String file = fileList.get(fileCounter);
             System.out.println("Processing file: " + file);
             try {
-
                 BufferedReader reader = new BufferedReader(new FileReader(inputDir + file));
                 String articleJson;
                 PrintWriter out = new PrintWriter(outputDir + file);
                 //read one article per line
                 while ((articleJson = reader.readLine()) != null) {
                     String articleId;
-                    String articleText;
+                    ArrayList<String> articleTexts = new ArrayList<>();
+                    ArrayList<String> languages = new ArrayList<>();
                     ++itemCounter;
                     try {
                         //extract the id and text
                         JSONObject article = new JSONObject(articleJson);
                         articleId = String.valueOf(article.get(idColumnName));
-                        articleText = (String) article.get(textColumnName);
+                        JSONArray langArr = article.getJSONArray("languages");
+                        for (Object langItem : langArr) {
+                            String lang = (String) langItem;
+                            String textFieldName = textColumnName + "_" + lang;
+                            if (!article.has(textFieldName)) {
+                                throw new NoSuchFieldException(textFieldName);
+                            }
+                            languages.add(lang);
+                            articleTexts.add(article.getString(textFieldName));
+                        }
                     } catch (Exception e) {
                         articleId = String.valueOf(itemCounter);
-                        articleText = "";
                         errorCounter++;
                         System.out.println("Found " + errorCounter + " errors");
                     }
                     //annotate the article
-
-                    JSONObject annotation = annotator.annotateDocument(articleId, articleText, enrichers, ontology);
+                    List<DocumentEnricher> enrichers = annotator.preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+                    JSONObject annotation = annotator.annotateDocument(articleId, articleTexts, languages, enrichers, ontology);
                     assert annotation != null;
                     output.add(annotation);
                     if (writeBatch > 0 && itemCounter % writeBatch == 0) {

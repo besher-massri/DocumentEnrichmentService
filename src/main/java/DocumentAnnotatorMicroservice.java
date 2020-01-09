@@ -48,7 +48,7 @@ public class DocumentAnnotatorMicroservice {
         } catch (IOException | NoSuchFieldException e) {
             e.printStackTrace();
         }
-        System.out.println("Pipeline Initialized");
+        //System.out.println("Pipeline Initialized");
     }
 
     private CoreNLPAPI getSuitablePipeline(boolean NER, boolean splitIntoParagraphs) {
@@ -67,30 +67,59 @@ public class DocumentAnnotatorMicroservice {
 
     private CoreNLPAPI initializePipelineConfigs(boolean NER, boolean wordAnnotations, boolean splitIntoParagraphs, boolean synonyms,
                                                  boolean indices, boolean spaces, boolean allowAlternativeNames, boolean hierarchy) {
-        System.out.println("Entered initialization");
+        //System.out.println("Entered initialization");
         CoreNLPAPI corenlp = getSuitablePipeline(NER, splitIntoParagraphs);
-        System.out.println("Finished initialization");
+        //System.out.println("Finished initialization");
         corenlp.setSpaces(spaces);
         corenlp.setIndices(indices);
         corenlp.setWordAnnotations(wordAnnotations);
         corenlp.setSynonyms(synonyms);
         ontMapping.setAllowAlternativeNames(allowAlternativeNames);
         ontMapping.setHierarchy(hierarchy);
-        System.out.println("Finished initialization");
+        //System.out.println("Finished initialization");
         return corenlp;
     }
 
     private String cleanText(String articleText) {
         StringBuilder cleanText = new StringBuilder();
-        String snippet;
-        for (int i = 0; i * 1000 < articleText.length(); ++i) {
-            snippet = articleText.substring(1000 * i, Math.min(1000 * i + 1000, articleText.length()));
+        int offset = 0;
+        while (offset < articleText.length() && articleText.substring(offset, offset + 2).equals("\\n")) {
+            offset += 2;
+        }
+        int trim = articleText.length() - 2;
+        while (trim > offset && articleText.substring(trim, trim + 2).equals("\\n")) {
+            trim -= 2;
+        }
+        trim += 2;
+        if (trim - offset <= 0) {
+            return "";
+        }
+        int cnt = 0;
+        /*
+        for (int i = offset; i < trim; i += 1000) {
             boolean isValid = false;
-            for (int j = 0; j < snippet.length() && !isValid; ++j) {
-                isValid |= Character.isAlphabetic(snippet.charAt(j));
+            int st = i;
+            int en = Math.min(st + 1000, trim);
+            for (int j = st; j < en && !isValid; ++j) {
+                isValid = !Character.isWhitespace(articleText.charAt(j));
             }
+            //snippet = articleText.substring(st, en);
             if (isValid) {
-                cleanText.append(snippet);
+                cleanText.append(articleText, st, en);
+            }
+        }*/
+        for (int i = offset; i < trim - 1; ++i) {
+            char c = articleText.charAt(i);
+            char nxt = articleText.charAt(i + 1);
+            if (c=='\\' && nxt=='n'){
+                ++cnt;
+                if (cnt<3){
+                    cleanText.append("\\n");
+                }
+                ++i;
+            }else{
+                cnt=0;
+                cleanText.append(c);
             }
         }
         return cleanText.toString();
@@ -101,50 +130,50 @@ public class DocumentAnnotatorMicroservice {
         initPipelines();
     }
 
-    private long execute(DocumentEnricher task, String id, String text) {
+    private long execute(DocumentEnricher task, String id, List<String> texts, List<String> languages) {
         long startTime = System.currentTimeMillis();
-        enrichments.add(task.process(id, text));
+        enrichments.add(task.process(id, texts, languages));
         long endTime = System.currentTimeMillis();
         return endTime - startTime;
     }
 
-
-    public List<DocumentEnricher> preparePipeLine(Boolean NER, Boolean wordAnnotations, Boolean synonyms,
+    public List<DocumentEnricher> preparePipeLine(List<String> languages, Boolean NER, Boolean wordAnnotations, Boolean synonyms,
                                                   Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
                                                   Boolean wikiConcepts, boolean allowAlternativeNames, boolean hierarchy) {
         List<DocumentEnricher> tasks = new ArrayList<>();
         enrichments = new ArrayList<>();
-        System.out.println("Configurations Set");
-        if (wordAnnotations || NER) {
+        //System.out.println("Configurations Set");
+        if ((languages.contains("en") || languages.contains("xx")) && (wordAnnotations || NER)) {
             tasks.add(initializePipelineConfigs(NER, wordAnnotations, splitIntoParagraphs, synonyms, indices, spaces, allowAlternativeNames, hierarchy));
         }
         if (wikiConcepts) {
             tasks.add(wikification);
         }
-        System.out.println("Pipeline Initialized");
+        //System.out.println("Pipeline Initialized");
         return tasks;
     }
 
-    public JSONObject annotateDocument(String id, String text, List<DocumentEnricher> tasks, String ontology) {
-        text = cleanText(text);
-        boolean paralleizeTasks = true;
-        if (paralleizeTasks) {
+    public JSONObject annotateDocument(String id, List<String> texts, List<String> languages, List<DocumentEnricher> tasks, String ontology) {
+        assert (texts.size() == languages.size());
+        JSONObject annotatedDocument = new JSONObject();
+        annotatedDocument.put("id", id);
+        boolean parallelizeTasks = true;
+        for (int i = 0; i < texts.size(); ++i) {
+            texts.set(i, cleanText(texts.get(i)));
+        }
+        if (parallelizeTasks) {
             try {
-                String finalText = text;
                 ExecutorService.parallelize(tasks, (task) -> {
-                    return execute(task, id, finalText);
+                    return execute(task, id, texts, languages);
                 }, 2);
             } catch (InterruptedException | ExecutionException e) {
                 e.printStackTrace();
             }
         } else {
             for (DocumentEnricher task : tasks) {
-                execute(task, id, text);
+                execute(task, id, texts, languages);
             }
         }
-        JSONObject annotatedDocument = new JSONObject();
-        annotatedDocument.put("id", id);
-        annotatedDocument.put("text", text);
         JSONObject annotationsObj = new JSONObject();
         for (JSONObject enrichment : enrichments) {
             for (String key : enrichment.keySet()) {
@@ -158,7 +187,7 @@ public class DocumentAnnotatorMicroservice {
         return annotatedDocument;
     }
 
-    public JSONObject annotateDocument(String id, String text,
+    public JSONObject annotateDocument(String id, List<String> texts, List<String> languages,
                                        Boolean NER, Boolean wordAnnotations, Boolean synonyms,
                                        Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
                                        Boolean wikiConcepts,
@@ -195,8 +224,8 @@ public class DocumentAnnotatorMicroservice {
         if (hierarchy == null) {
             hierarchy = false;
         }
-        List<DocumentEnricher> tasks = preparePipeLine(NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
-        return annotateDocument(id, text, tasks, ontology);
+        List<DocumentEnricher> tasks = preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+        return annotateDocument(id, texts, languages, tasks, ontology);
 
     }
 }

@@ -22,15 +22,15 @@ public class Wikification implements DocumentEnricher {
     private int nThreads;
     private volatile List<JSONObject> conceptsList = new ArrayList<>();
 
-    public Wikification(String userKey, String wikifierUrl, int maxlength,int nThreads) {
+    public Wikification(String userKey, String wikifierUrl, int maxlength, int nThreads) {
         this.userKey = userKey;
         this.wikifierUrl = wikifierUrl;
         this.maxLength = maxlength;
-        this.nThreads=nThreads;
+        this.nThreads = nThreads;
     }
 
     public Wikification(String userKey, String wikifierUrl) {
-        this(userKey, wikifierUrl, 10000,5);
+        this(userKey, wikifierUrl, 10000, 5);
     }
 
     private JSONObject wikifyText(String text) {
@@ -133,15 +133,28 @@ public class Wikification implements DocumentEnricher {
                 JSONObject conceptInfo = new JSONObject();
                 JSONObject oldConcept = concept.concept;
                 conceptInfo.put("uri", oldConcept.getString("url"));
-                conceptInfo.put("name", oldConcept.getString("title"));
-                conceptInfo.put("secUri", oldConcept.has("secUri") ? oldConcept.getString("secUri") : null);
-                conceptInfo.put("secName", oldConcept.has("secTitle") ? oldConcept.getString("secTitle") : null);
-                conceptInfo.put("lang", oldConcept.getString("lang"));
-                conceptInfo.put("wikiDataClasses", oldConcept.has("wikiDataClasses") ? oldConcept.getJSONArray("wikiDataClasses") : null);
-                conceptInfo.put("cosine", oldConcept.getDouble("cosine") * weight);
-                conceptInfo.put("pageRank", oldConcept.getDouble("pageRank") * weight);
-                conceptInfo.put("dbPediaIri", oldConcept.getString("dbPediaIri"));
-                conceptInfo.put("supportLen", oldConcept.getInt("supportLen"));
+                JSONObject lang_info = new JSONObject();
+                lang_info.put("name", oldConcept.getString("title"));
+                lang_info.put("uri", oldConcept.getString("url"));
+                // the frequency of this language of this concept
+                lang_info.put("freq", 1);
+                JSONObject lang = new JSONObject();
+                try{
+                    lang.put(oldConcept.getString("lang"), lang_info);
+                    conceptInfo.put("langInfo", lang);
+                    conceptInfo.put("uri", oldConcept.has("secUrl") ? oldConcept.getString("secUrl") : oldConcept.getString("url"));
+                    conceptInfo.put("secUri", oldConcept.has("secUrl") ? oldConcept.getString("secUrl") : null);
+                    conceptInfo.put("secName", oldConcept.has("secTitle") ? oldConcept.getString("secTitle") : null);
+                    conceptInfo.put("lang", oldConcept.getString("lang"));
+                    conceptInfo.put("wikiDataClasses", oldConcept.has("wikiDataClasses") ? oldConcept.getJSONArray("wikiDataClasses") : null);
+                    conceptInfo.put("cosine", oldConcept.getDouble("cosine") * weight);
+                    conceptInfo.put("pageRank", oldConcept.getDouble("pageRank") * weight);
+                    conceptInfo.put("dbPediaIri", oldConcept.getString("dbPediaIri"));
+                    conceptInfo.put("supportLen", oldConcept.getInt("supportLen"));
+                }catch (Exception e){
+                    System.out.println("Error at "+conceptInfo.getString("url"));
+                }
+
                 concepts.add(conceptInfo);
             }
             long stopTime = System.currentTimeMillis();
@@ -187,7 +200,6 @@ public class Wikification implements DocumentEnricher {
                 if (cutoff == 0 || cutoff == -1) {
                     cutoff = chunk.length();
                 }
-
                 // get the chunk
                 chunk = chunk.substring(0, cutoff);
                 // increment text index
@@ -209,9 +221,13 @@ public class Wikification implements DocumentEnricher {
         return task.totalTimeConsumed;
     }
 
-    public JSONObject process(String id, String text) {
+    public JSONObject process(String id, List<String> texts, List<String> languages) {
         conceptsList.clear();
-        List<Task> tasks = prepareWikificationTasks(text);
+        //combine all texts from all languages into tasks
+        List<Task> tasks = new ArrayList<>();
+        for (String text : texts) {
+            tasks.addAll(prepareWikificationTasks(text));
+        }
         List<JSONObject> concepts = new ArrayList<>();
         //should be paralleled
         int taskCounter = 0;
@@ -237,9 +253,20 @@ public class Wikification implements DocumentEnricher {
         // merge concepts with matching uri
         for (JSONObject concept : conceptsList) {
             String uri = concept.getString("uri");
+            //there is only one initially, which is the original language of the concept
+            JSONObject conceptLangInfo=concept.getJSONObject("langInfo");
+            String conceptLang=conceptLangInfo.keys().next();
+            JSONObject langConceptLangInfo=conceptLangInfo.getJSONObject(conceptLang);//the specific language concept info
             if (conceptsMap.containsKey(uri)) {
                 // concept exists in mapping - add weighted pageRank
                 JSONObject mergeConcept = conceptsMap.get(uri);
+                JSONObject langInfo = mergeConcept.getJSONObject("langInfo");
+                //if there is no occurrence of this language info (yet), add it
+                if (!langInfo.has(conceptLang)){
+                    langInfo.put(conceptLang,langConceptLangInfo);
+                }else{//else increase its frequency
+                    langConceptLangInfo.put("freq",langConceptLangInfo.getInt("freq")+1);
+                }
                 mergeConcept.put("pageRank", mergeConcept.getDouble("pageRank") + concept.getDouble("pageRank"));
                 mergeConcept.put("cosine", mergeConcept.getDouble("cosine") + concept.getDouble("cosine"));
                 mergeConcept.put("supportLen", mergeConcept.getInt("supportLen") + concept.getInt("supportLen"));
@@ -251,28 +278,32 @@ public class Wikification implements DocumentEnricher {
 
         // store merged concepts within the material object
         List<JSONObject> wikipediaConcepts = new ArrayList<>(conceptsMap.values());
-        System.out.println("unique concepts " + wikipediaConcepts.size());
+        //System.out.println("unique concepts " + wikipediaConcepts.size());
+
+        /*
+        //not relevant anymore with multiple languages
         // get the dominant language of the material
-        HashMap<String, Integer> languages = new HashMap<>();
+        HashMap<String, Integer> languagesDetected = new HashMap<>();
         for (JSONObject concept : wikipediaConcepts) {
             String lang = concept.getString("lang");
-            if (languages.containsKey(lang)) {
-                languages.put(lang, languages.get(lang) + 1);
+            if (languagesDetected.containsKey(lang)) {
+                languagesDetected.put(lang, languagesDetected.get(lang) + 1);
             } else {
-                languages.put(lang, 1);
+                languagesDetected.put(lang, 1);
             }
         }
         String lang = "";
         int maxLang = -1;
-        for (String singleLang : languages.keySet()) {
-            if (languages.get(singleLang) > maxLang) {
-                maxLang = languages.get(singleLang);
+        for (String singleLang : languagesDetected.keySet()) {
+            if (languagesDetected.get(singleLang) > maxLang) {
+                maxLang = languagesDetected.get(singleLang);
                 lang = singleLang;
             }
         }
+         */
         JSONObject wikifications = new JSONObject();
         wikifications.put("id", id);
-        wikifications.put("language", lang);
+        //wikifications.put("language", lang);
         wikifications.put("wiki", wikipediaConcepts);
         //wikifications.put("process", "wikification");
         return wikifications;
