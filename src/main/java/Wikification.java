@@ -12,7 +12,7 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Wikification implements DocumentEnricher {
@@ -139,7 +139,7 @@ public class Wikification implements DocumentEnricher {
                 // the frequency of this language of this concept
                 lang_info.put("freq", 1);
                 JSONObject lang = new JSONObject();
-                try{
+                try {
                     lang.put(oldConcept.getString("lang"), lang_info);
                     conceptInfo.put("langInfo", lang);
                     conceptInfo.put("uri", oldConcept.has("secUrl") ? oldConcept.getString("secUrl") : oldConcept.getString("url"));
@@ -151,8 +151,8 @@ public class Wikification implements DocumentEnricher {
                     conceptInfo.put("pageRank", oldConcept.getDouble("pageRank") * weight);
                     conceptInfo.put("dbPediaIri", oldConcept.getString("dbPediaIri"));
                     conceptInfo.put("supportLen", oldConcept.getInt("supportLen"));
-                }catch (Exception e){
-                    System.out.println("Error at "+conceptInfo.getString("url"));
+                } catch (Exception e) {
+                    System.out.println("Error at " + conceptInfo.getString("url"));
                 }
 
                 concepts.add(conceptInfo);
@@ -180,13 +180,14 @@ public class Wikification implements DocumentEnricher {
                 // text chunk is of max length - make a cutoff at last
                 // end character to avoid cutting in the middle of sentence
                 int cutoff = 0;
-                String[] lastCharacter = Pattern.compile("[\\.?!]")
-                        .matcher(chunk)
-                        .results()
-                        .map(MatchResult::group)
-                        .toArray(String[]::new);
-                if (lastCharacter.length > 0) {
-                    cutoff = chunk.lastIndexOf(lastCharacter[lastCharacter.length - 1]);
+                List<String> lastCharacter = new ArrayList<>();
+                Matcher m = Pattern.compile("[\\.?!]")
+                        .matcher(chunk);
+                while (m.find()) {
+                    lastCharacter.add(m.group());
+                }
+                if (lastCharacter.size() > 0) {
+                    cutoff = chunk.lastIndexOf(lastCharacter.get(lastCharacter.size() - 1));
                 }
                 // if there is not end character detected
                 if (cutoff == 0) {
@@ -254,18 +255,18 @@ public class Wikification implements DocumentEnricher {
         for (JSONObject concept : conceptsList) {
             String uri = concept.getString("uri");
             //there is only one initially, which is the original language of the concept
-            JSONObject conceptLangInfo=concept.getJSONObject("langInfo");
-            String conceptLang=conceptLangInfo.keys().next();
-            JSONObject langConceptLangInfo=conceptLangInfo.getJSONObject(conceptLang);//the specific language concept info
+            JSONObject conceptLangInfo = concept.getJSONObject("langInfo");
+            String conceptLang = conceptLangInfo.keys().next();
+            JSONObject langConceptLangInfo = conceptLangInfo.getJSONObject(conceptLang);//the specific language concept info
             if (conceptsMap.containsKey(uri)) {
                 // concept exists in mapping - add weighted pageRank
                 JSONObject mergeConcept = conceptsMap.get(uri);
                 JSONObject langInfo = mergeConcept.getJSONObject("langInfo");
                 //if there is no occurrence of this language info (yet), add it
-                if (!langInfo.has(conceptLang)){
-                    langInfo.put(conceptLang,langConceptLangInfo);
-                }else{//else increase its frequency
-                    langConceptLangInfo.put("freq",langConceptLangInfo.getInt("freq")+1);
+                if (!langInfo.has(conceptLang)) {
+                    langInfo.put(conceptLang, langConceptLangInfo);
+                } else {//else increase its frequency
+                    langConceptLangInfo.put("freq", langConceptLangInfo.getInt("freq") + 1);
                 }
                 mergeConcept.put("pageRank", mergeConcept.getDouble("pageRank") + concept.getDouble("pageRank"));
                 mergeConcept.put("cosine", mergeConcept.getDouble("cosine") + concept.getDouble("cosine"));
