@@ -60,6 +60,7 @@ public class DocumentsAnnotator {
     private static String ontology;
     private static boolean allowAlternativeNames;
     private static boolean hierarchy;
+    private static boolean numericClassifiers;
     private static final String configPath = "config/config.json";
     private static DocumentAnnotatorMicroservice annotator;
 
@@ -75,6 +76,7 @@ public class DocumentsAnnotator {
             NER = (Boolean) config.get("NER");
             temporalEntities = (Boolean) config.get("temporalEntities");
             splitIntoParagraphs = (Boolean) config.get("splitIntoParagraphs");
+            numericClassifiers = (Boolean) config.get("numericClassifiers");
             idColumnName = String.valueOf(config.get("idColumnName"));
             textColumnName = String.valueOf(config.get("textColumnName"));
             inputDir = String.valueOf(config.get("inputDir"));
@@ -96,6 +98,7 @@ public class DocumentsAnnotator {
             NER = true;
             temporalEntities = false;
             splitIntoParagraphs = true;
+            numericClassifiers = false;
             idColumnName = "document_id";
             textColumnName = "document_text";
             verbose = 10;
@@ -204,7 +207,7 @@ public class DocumentsAnnotator {
                         System.out.println("Found " + errorCounter + " errors");
                     }
                     //annotate the article
-                    List<DocumentEnricher> enrichers = annotator.preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+                    List<DocumentEnricher> enrichers = annotator.preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, numericClassifiers, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
                     JSONObject annotation = annotator.annotateDocument(articleId, articleTexts, languages, enrichers, ontology);
                     assert annotation != null;
                     output.add(annotation);

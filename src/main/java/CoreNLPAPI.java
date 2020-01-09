@@ -24,6 +24,7 @@ public class CoreNLPAPI implements DocumentEnricher {
     private WordNetAPI wn;
     private boolean synonyms;
     private boolean splitIntoParagraphs;
+    private boolean numericClassifiers;
     private boolean temporalEntities;
     private boolean spaces;
     private boolean indices;
@@ -34,15 +35,19 @@ public class CoreNLPAPI implements DocumentEnricher {
      *
      * @param NER whether or not to generate named entity as part of the annotation
      */
-    CoreNLPAPI(boolean NER, boolean splitIntoParagraphs, boolean temporalEntities) {
+    CoreNLPAPI(boolean NER, boolean splitIntoParagraphs, boolean numericClassifiers) {
         this.NER = NER;
         this.splitIntoParagraphs = splitIntoParagraphs;
-        this.temporalEntities = temporalEntities;
+        this.numericClassifiers = numericClassifiers;
         init();
     }
 
     public void setSynonyms(boolean synonyms) {
         this.synonyms = synonyms;
+    }
+
+    public void setNumericClassifiers(boolean numericClassifiers) {
+        this.numericClassifiers = numericClassifiers;
     }
 
     public void setIndices(boolean indices) {
@@ -76,6 +81,10 @@ public class CoreNLPAPI implements DocumentEnricher {
             if (!temporalEntities) {
                 props.setProperty("ner.useSUTime", "false");
             }
+            if (!numericClassifiers) {
+                System.out.println("Numeric classifiers are off");
+                props.setProperty("ner.applyNumericClassifiers", "false");
+            }
         } else {
             props.setProperty("annotators", "tokenize, ssplit, pos, lemma");
         }
@@ -99,7 +108,7 @@ public class CoreNLPAPI implements DocumentEnricher {
         //tokenJson.put("token", token.word());
         tokenJson.put("norm", token.lemma());
         tokenJson.put("pos", token.tag());
-        tokenJson.put("ner", token.ner());
+        //tokenJson.put("ner", token.ner());
         if (indices) {
             tokenJson.put("iFrom", token.beginPosition());
             tokenJson.put("iTo", token.endPosition() - 1);
@@ -128,7 +137,7 @@ public class CoreNLPAPI implements DocumentEnricher {
      * @param cumulativeSumOfSentences the running sum of number of words of sentences, to be used to identify the wordIndex
      * @return json object of the named entity
      */
-    private JSONObject entityMentionToJson(CoreEntityMention mention, ArrayList<Integer> cumulativeSumOfSentences) {
+    private JSONObject entityMentionToJson(CoreEntityMention mention, ArrayList<Integer> cumulativeSumOfSentences, int frequency) {
         JSONObject entityJson = new JSONObject();
         entityJson.put("text", mention.text());
         entityJson.put("type", mention.entityType());
@@ -138,7 +147,10 @@ public class CoreNLPAPI implements DocumentEnricher {
             entityJson.put("wFrom", getTokenWordIdx(mention.tokens().get(0), cumulativeSumOfSentences));
             entityJson.put("wTo", getTokenWordIdx(mention.tokens().get(mention.tokens().size() - 1), cumulativeSumOfSentences));
         }
-        if (synonyms) {
+        if (frequency != -1) {
+            entityJson.put("freq", frequency);
+        }
+        if (false && synonyms) {
             entityJson.put("synonyms", new JSONArray(wn.getSynonyms(mention.text(), "NN")));
         }
         return entityJson;
@@ -250,9 +262,34 @@ public class CoreNLPAPI implements DocumentEnricher {
             }
             //if NER is enabled, add the named entity information in the `annotations` field
             if (NER) {
+
                 JSONArray annotations = new JSONArray();
-                for (CoreEntityMention em : doc.entityMentions()) {
-                    annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences));
+                if (!indices) {
+                    HashMap<String, Integer> frequency = new HashMap<>();
+                    List<CoreEntityMention> entityMentions = doc.entityMentions();
+                    List<Boolean> repeated = new ArrayList<>();
+                    //merge the annotations
+                    for (CoreEntityMention em : doc.entityMentions()) {
+                        String annotType = em.entityType() + "$$$" + em.text();
+                        if (!frequency.containsKey(annotType)) {
+                            frequency.put(annotType, 1);
+                            repeated.add(false);
+                        } else {
+                            frequency.put(annotType, frequency.get(annotType) + 1);
+                            repeated.add(true);
+                        }
+                    }
+                    for (int i = 0; i < entityMentions.size(); ++i) {
+                        if (!repeated.get(i)) {
+                            CoreEntityMention em = entityMentions.get(i);
+                            String annotType = em.entityType() + "$$$" + em.text();
+                            annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences, frequency.get(annotType)));
+                        }
+                    }
+                } else {
+                    for (CoreEntityMention em : doc.entityMentions()) {
+                        annotations.put(entityMentionToJson(em, cumulativeSumOfSetentences, -1));
+                    }
                 }
                 annotatedArticle.put("NE", annotations);
             }

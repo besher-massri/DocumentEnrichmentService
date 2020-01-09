@@ -69,6 +69,7 @@ public class APIController {
             Boolean wordAnnotations = getBoolean(req.queryParams("wordAnnotations"));
             Boolean synonyms = getBoolean(req.queryParams("synonyms"));
             Boolean splitIntoParagraphs = getBoolean(req.queryParams("splitIntoParagraphs"));
+            Boolean numericClassifiers = getBoolean(req.queryParams("numericClassifiers"));
             Boolean indices = getBoolean(req.queryParams("indices"));
             Boolean spaces = getBoolean(req.queryParams("spaces"));
             Boolean wikiConcepts = getBoolean(req.queryParams("wikiConcepts"));
@@ -99,6 +100,7 @@ public class APIController {
                     wordAnnotations,
                     synonyms,
                     splitIntoParagraphs,
+                    numericClassifiers,
                     indices,
                     spaces,
                     wikiConcepts,

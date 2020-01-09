@@ -12,6 +12,10 @@ public class DocumentAnnotatorMicroservice {
     private CoreNLPAPI NERPipeline;
     private CoreNLPAPI SplitIntoParagraphsPipeline;
     private CoreNLPAPI NonePipeline;
+    private CoreNLPAPI NER_SplitIntoParagraphsPipelineNumericalClassifiers;
+    private CoreNLPAPI NERPipelineNumericalClassifiers;
+    private CoreNLPAPI SplitIntoParagraphsPipelineNumericalClassifiers;
+    private CoreNLPAPI NonePipelineNumericalClassifiers;
     private Wikification wikification;
 
     private OntologyMapping ontMapping;
@@ -38,10 +42,14 @@ public class DocumentAnnotatorMicroservice {
 
     private void initPipelines() {
 
-        NER_SplitIntoParagraphsPipeline = new CoreNLPAPI(true, true, true);
-        SplitIntoParagraphsPipeline = new CoreNLPAPI(false, true, true);
-        NERPipeline = new CoreNLPAPI(true, false, true);
-        NonePipeline = new CoreNLPAPI(false, false, true);
+        NER_SplitIntoParagraphsPipeline = new CoreNLPAPI(true, true, false);
+        SplitIntoParagraphsPipeline = new CoreNLPAPI(false, true, false);
+        NERPipeline = new CoreNLPAPI(true, false, false);
+        NonePipeline = new CoreNLPAPI(false, false, false);
+        NER_SplitIntoParagraphsPipelineNumericalClassifiers = new CoreNLPAPI(true, true, true);
+        SplitIntoParagraphsPipelineNumericalClassifiers = new CoreNLPAPI(false, true, true);
+        NERPipelineNumericalClassifiers = new CoreNLPAPI(true, false, true);
+        NonePipelineNumericalClassifiers = new CoreNLPAPI(false, false, true);
         wikification = new Wikification(wikifierKey, wikifierWebsite, wikifierMaxLength, wikifierThreads);
         try {
             ontMapping = new OntologyMapping(ontologyDir, true, false);
@@ -51,7 +59,20 @@ public class DocumentAnnotatorMicroservice {
         //System.out.println("Pipeline Initialized");
     }
 
-    private CoreNLPAPI getSuitablePipeline(boolean NER, boolean splitIntoParagraphs) {
+    private CoreNLPAPI getSuitablePipeline(boolean NER, boolean splitIntoParagraphs, boolean numericalClassifiers) {
+        if (numericalClassifiers) {
+            if (NER) {
+                if (splitIntoParagraphs) {
+                    return NER_SplitIntoParagraphsPipelineNumericalClassifiers;
+                }
+                return NERPipelineNumericalClassifiers;
+            }
+            // not NER
+            if (splitIntoParagraphs) {
+                return SplitIntoParagraphsPipelineNumericalClassifiers;
+            }
+            return NonePipelineNumericalClassifiers;
+        }
         if (NER) {
             if (splitIntoParagraphs) {
                 return NER_SplitIntoParagraphsPipeline;
@@ -65,15 +86,16 @@ public class DocumentAnnotatorMicroservice {
         return NonePipeline;
     }
 
-    private CoreNLPAPI initializePipelineConfigs(boolean NER, boolean wordAnnotations, boolean splitIntoParagraphs, boolean synonyms,
+    private CoreNLPAPI initializePipelineConfigs(boolean NER, boolean wordAnnotations, boolean splitIntoParagraphs, boolean numericClassifiers, boolean synonyms,
                                                  boolean indices, boolean spaces, boolean allowAlternativeNames, boolean hierarchy) {
         //System.out.println("Entered initialization");
-        CoreNLPAPI corenlp = getSuitablePipeline(NER, splitIntoParagraphs);
+        CoreNLPAPI corenlp = getSuitablePipeline(NER, splitIntoParagraphs,numericClassifiers);
         //System.out.println("Finished initialization");
         corenlp.setSpaces(spaces);
         corenlp.setIndices(indices);
         corenlp.setWordAnnotations(wordAnnotations);
         corenlp.setSynonyms(synonyms);
+        corenlp.setNumericClassifiers(numericClassifiers);
         ontMapping.setAllowAlternativeNames(allowAlternativeNames);
         ontMapping.setHierarchy(hierarchy);
         //System.out.println("Finished initialization");
@@ -111,14 +133,14 @@ public class DocumentAnnotatorMicroservice {
         for (int i = offset; i < trim - 1; ++i) {
             char c = articleText.charAt(i);
             char nxt = articleText.charAt(i + 1);
-            if (c=='\\' && nxt=='n'){
+            if (c == '\\' && nxt == 'n') {
                 ++cnt;
-                if (cnt<3){
+                if (cnt < 3) {
                     cleanText.append("\\n");
                 }
                 ++i;
-            }else{
-                cnt=0;
+            } else {
+                cnt = 0;
                 cleanText.append(c);
             }
         }
@@ -138,13 +160,13 @@ public class DocumentAnnotatorMicroservice {
     }
 
     public List<DocumentEnricher> preparePipeLine(List<String> languages, Boolean NER, Boolean wordAnnotations, Boolean synonyms,
-                                                  Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
+                                                  Boolean splitIntoParagraphs, boolean numericClassifiers, Boolean indices, Boolean spaces,
                                                   Boolean wikiConcepts, boolean allowAlternativeNames, boolean hierarchy) {
         List<DocumentEnricher> tasks = new ArrayList<>();
         enrichments = new ArrayList<>();
         //System.out.println("Configurations Set");
         if ((languages.contains("en") || languages.contains("xx")) && (wordAnnotations || NER)) {
-            tasks.add(initializePipelineConfigs(NER, wordAnnotations, splitIntoParagraphs, synonyms, indices, spaces, allowAlternativeNames, hierarchy));
+            tasks.add(initializePipelineConfigs(NER, wordAnnotations, splitIntoParagraphs, numericClassifiers, synonyms, indices, spaces, allowAlternativeNames, hierarchy));
         }
         if (wikiConcepts) {
             tasks.add(wikification);
@@ -189,7 +211,7 @@ public class DocumentAnnotatorMicroservice {
 
     public JSONObject annotateDocument(String id, List<String> texts, List<String> languages,
                                        Boolean NER, Boolean wordAnnotations, Boolean synonyms,
-                                       Boolean splitIntoParagraphs, Boolean indices, Boolean spaces,
+                                       Boolean splitIntoParagraphs, Boolean numericClassifiers, Boolean indices, Boolean spaces,
                                        Boolean wikiConcepts,
                                        String ontology, Boolean allowAlternativeNames, Boolean hierarchy) {
         System.out.println("Annotation started");
@@ -224,7 +246,7 @@ public class DocumentAnnotatorMicroservice {
         if (hierarchy == null) {
             hierarchy = false;
         }
-        List<DocumentEnricher> tasks = preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
+        List<DocumentEnricher> tasks = preparePipeLine(languages, NER, wordAnnotations, synonyms, splitIntoParagraphs, numericClassifiers, indices, spaces, wikiConcepts, allowAlternativeNames, hierarchy);
         return annotateDocument(id, texts, languages, tasks, ontology);
 
     }

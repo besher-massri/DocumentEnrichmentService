@@ -2,6 +2,7 @@
   "NER": true,
   "wordAnnotations": true,
   "temporalEntities": false,
+  "numericClassifiers":false,
   "synonyms": true,
   "spaces": false,
   "indices": false,
